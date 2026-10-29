@@ -1,0 +1,333 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		71D31A0B3C7945D1BFD00202 = {isa = PBXBuildFile; fileRef = 71D31A0B3C7945D1BFD00201; };
+		71D31A0B3C7945D1BFD00102 = {isa = PBXBuildFile; fileRef = 71D31A0B3C7945D1BFD00101; };
+		71D31A0B3C7945D1BFD00103 = {isa = PBXBuildFile; fileRef = 71D31A0B3C7945D1BFD00101; };
+		00000000000000000000000E /* Sources/Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000001 /* Sources/Core.swift */; };
+		00000000000000000000000F /* Sources/SharedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000004 /* Sources/SharedCache.swift */; };
+		000000000000000000000010 /* Widget/TaskGlassWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000006 /* Widget/TaskGlassWidget.swift */; };
+		000000000000000000000016 /* Sources/Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000001 /* Sources/Core.swift */; };
+		000000000000000000000017 /* Sources/Auth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000002 /* Sources/Auth.swift */; };
+		000000000000000000000018 /* Sources/Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000003 /* Sources/Store.swift */; };
+		000000000000000000000019 /* Sources/SharedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000004 /* Sources/SharedCache.swift */; };
+		00000000000000000000001A /* Sources/TaskGlassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000005 /* Sources/TaskGlassApp.swift */; };
+		00000000000000000000001C /* TaskGlassWidget.appex in Embed Widget */ = {isa = PBXBuildFile; fileRef = 000000000000000000000008 /* TaskGlassWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2E833C423092EEAA00825459 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000023 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000000000012;
+			remoteInfo = TaskGlassWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		00000000000000000000001D /* Embed Widget */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				00000000000000000000001C /* TaskGlassWidget.appex in Embed Widget */,
+			);
+			name = "Embed Widget";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		71D31A0B3C7945D1BFD00201 = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Assets/TaskGlass.icns; sourceTree = "<group>"; };
+		71D31A0B3C7945D1BFD00101 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CompleteTaskIntent.swift; sourceTree = "<group>"; };
+		000000000000000000000001 /* Sources/Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Core.swift; sourceTree = "<group>"; };
+		000000000000000000000002 /* Sources/Auth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Auth.swift; sourceTree = "<group>"; };
+		000000000000000000000003 /* Sources/Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Store.swift; sourceTree = "<group>"; };
+		000000000000000000000004 /* Sources/SharedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/SharedCache.swift; sourceTree = "<group>"; };
+		000000000000000000000005 /* Sources/TaskGlassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TaskGlassApp.swift; sourceTree = "<group>"; };
+		000000000000000000000006 /* Widget/TaskGlassWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget/TaskGlassWidget.swift; sourceTree = "<group>"; };
+		000000000000000000000007 /* TaskGlass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = TaskGlass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000008 /* TaskGlassWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = TaskGlassWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		000000000000000000000009 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000007 /* TaskGlass.app */,
+				000000000000000000000008 /* TaskGlassWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000A = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000001 /* Sources/Core.swift */,
+				000000000000000000000002 /* Sources/Auth.swift */,
+				000000000000000000000003 /* Sources/Store.swift */,
+				000000000000000000000004 /* Sources/SharedCache.swift */,
+				000000000000000000000005 /* Sources/TaskGlassApp.swift */,
+				71D31A0B3C7945D1BFD00101,
+				000000000000000000000006 /* Widget/TaskGlassWidget.swift */,
+				71D31A0B3C7945D1BFD00201,
+				000000000000000000000009 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		000000000000000000000012 /* TaskGlassWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000000D /* Build configuration list for PBXNativeTarget "TaskGlassWidget" */;
+			buildPhases = (
+				000000000000000000000011 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TaskGlassWidget;
+			productName = TaskGlassWidget;
+			productReference = 000000000000000000000008 /* TaskGlassWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		00000000000000000000001F /* TaskGlass */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000015 /* Build configuration list for PBXNativeTarget "TaskGlass" */;
+			buildPhases = (
+				00000000000000000000001B /* Sources */,
+				71D31A0B3C7945D1BFD00203,
+				00000000000000000000001D /* Embed Widget */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				00000000000000000000001E /* PBXTargetDependency */,
+			);
+			name = TaskGlass;
+			productName = TaskGlass;
+			productReference = 000000000000000000000007 /* TaskGlass.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXResourcesBuildPhase section */
+		71D31A0B3C7945D1BFD00203 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (71D31A0B3C7945D1BFD00202,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXProject section */
+		000000000000000000000023 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2620;
+			};
+			buildConfigurationList = 000000000000000000000022 /* Build configuration list for PBXProject "TaskGlass" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 00000000000000000000000A;
+			productRefGroup = 000000000000000000000009 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				00000000000000000000001F /* TaskGlass */,
+				000000000000000000000012 /* TaskGlassWidget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		000000000000000000000011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000000E /* Sources/Core.swift in Sources */,
+				00000000000000000000000F /* Sources/SharedCache.swift in Sources */,
+				000000000000000000000010 /* Widget/TaskGlassWidget.swift in Sources */,
+				71D31A0B3C7945D1BFD00103,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000001B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000016 /* Sources/Core.swift in Sources */,
+				000000000000000000000017 /* Sources/Auth.swift in Sources */,
+				000000000000000000000018 /* Sources/Store.swift in Sources */,
+				000000000000000000000019 /* Sources/SharedCache.swift in Sources */,
+				00000000000000000000001A /* Sources/TaskGlassApp.swift in Sources */,
+				71D31A0B3C7945D1BFD00102,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		00000000000000000000001E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000000000012 /* TaskGlassWidget */;
+			targetProxy = 2E833C423092EEAA00825459 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		00000000000000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = "Widget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.taskglass.app.widget;
+				PRODUCT_NAME = TaskGlassWidget;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		00000000000000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = "Widget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.taskglass.app.widget;
+				PRODUCT_NAME = TaskGlassWidget;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		000000000000000000000013 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = App.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "App-Info.plist";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) TASKGLASS_APP";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.taskglass.app;
+				PRODUCT_NAME = TaskGlass;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		000000000000000000000014 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = App.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "App-Info.plist";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) TASKGLASS_APP";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.taskglass.app;
+				PRODUCT_NAME = TaskGlass;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		000000000000000000000020 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		000000000000000000000021 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		00000000000000000000000D /* Build configuration list for PBXNativeTarget "TaskGlassWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00000000000000000000000B /* Debug */,
+				00000000000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000015 /* Build configuration list for PBXNativeTarget "TaskGlass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000013 /* Debug */,
+				000000000000000000000014 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000022 /* Build configuration list for PBXProject "TaskGlass" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000020 /* Debug */,
+				000000000000000000000021 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000000000000000000000023 /* Project object */;
+}

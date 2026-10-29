@@ -1,0 +1,15 @@
+TaskGlass installation
+
+1. Open the DMG and drag TaskGlass into Applications.
+2. Launch TaskGlass from Applications.
+3. Import your own Google Desktop OAuth client JSON and sign in to Google.
+4. Control-click the desktop, choose Edit Widgets, and add Google Tasks.
+5. Keep TaskGlass running. You can hide its Dock icon in Settings and use the menu bar icon instead.
+
+Requirements: macOS 14 or later. A prebuilt universal app supports Apple silicon and Intel. Xcode is not required to run a prebuilt app.
+
+A development-signed build is not notarized. Work-managed Macs may require IT approval. A normal distribution release should be Developer ID signed and notarized by Apple. This disk image does not change macOS security settings.
+
+The installer contains no Google client configuration, account tokens, saved tasks or personal preferences. Import your own OAuth client JSON and sign in on each Mac. The same Desktop OAuth client can be reused for a personal installation; its project must list the signing-in account as a test user if the Google app remains in Testing status.
+
+Signing certificates contain the publisher identity as part of their public certificate chain. They contain no signing private key. A development installer should be shared only with its intended testers.

@@ -1,0 +1,23 @@
+# Local builds and personal Xcode state
+build/
+dist/
+DerivedData/
+*.app/
+*.dSYM/
+*.dmg
+*.zip
+xcuserdata/
+*.xcuserstate
+.DS_Store
+
+# Credentials, local task data and signing material
+*.json
+.env
+.env.*
+*.p12
+*.p8
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile
