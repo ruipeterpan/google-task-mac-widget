@@ -118,7 +118,8 @@ extension Notification.Name {
 }
 struct TasksView: View {
     @ObservedObject var store: TaskStore
-    @FocusState private var titleFocused: Bool
+    private enum ComposerField: Hashable { case title, details }
+    @FocusState private var composerFocus: ComposerField?
     @State private var title = ""
     @State private var details = ""
     @State private var showSetup = false
@@ -190,7 +191,12 @@ struct TasksView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 TextField("Add a task", text: $title)
-                    .textFieldStyle(.plain).focused($titleFocused)
+                    .textFieldStyle(.plain).focused($composerFocus, equals: .title)
+                    .onKeyPress(.tab, phases: .down) { press in
+                        guard press.modifiers.isEmpty else { return .ignored }
+                        composerFocus = .details
+                        return .handled
+                    }
                     .onSubmit { add() }.accessibilityLabel("New task title")
                 Button { add() } label: { Image(systemName: "plus.circle.fill").font(.title3) }
                     .buttonStyle(.plain).foregroundStyle(.blue)
@@ -201,6 +207,12 @@ struct TasksView: View {
             Divider()
             TextField("Details (optional)", text: $details, axis: .vertical)
                 .textFieldStyle(.plain).font(.callout).lineLimit(1...4)
+                .focused($composerFocus, equals: .details)
+                .onKeyPress(keys: [.tab, KeyEquivalent("\u{19}")], phases: .down) { press in
+                    guard press.modifiers.contains(.shift) || press.characters == "\u{19}" else { return .ignored }
+                    composerFocus = .title
+                    return .handled
+                }
                 .onKeyPress(.return, phases: .down) { press in
                     if press.modifiers.contains(.shift) {
                         guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView else { return .ignored }
@@ -218,7 +230,7 @@ struct TasksView: View {
     }
     private func focusComposer() {
         guard store.connected, !showSetup, editingTask == nil else { return }
-        titleFocused = true
+        composerFocus = .title
     }
     private func add() {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !store.busy else { return }
