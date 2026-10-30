@@ -5,6 +5,7 @@ The development implementation has been checked with:
 - Signed Xcode builds of both the companion and widget extension.
 - Strict verification of bundle signatures and matching App Group entitlements.
 - Native UI checks for the task composer, details editor and settings.
+- Version 0.3: closing the task window with Command-W leaves the process running; a single reopen restores the same task window. Settings opens separately, and the app declares LSUIElement from launch. Desktop-widget launch on the receiving Mac still needs user validation.
 - Live task creation, editing of multiline details, completion and automatic synchronization.
 - A live 30-second refresh setting check, plus tests for all six available intervals.
 - Desktop widget interaction confirmed by a tester: larger Reminders-style layout and direct task completion.

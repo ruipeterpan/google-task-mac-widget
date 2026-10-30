@@ -4,7 +4,7 @@ TaskGlass installation
 2. Launch TaskGlass from Applications.
 3. Import your own Google Desktop OAuth client JSON and sign in to Google.
 4. Control-click the desktop, choose Edit Widgets, and add Google Tasks.
-5. Keep TaskGlass running. You can hide its Dock icon in Settings and use the menu bar icon instead.
+5. Keep TaskGlass running. It lives in the menu bar without a Dock icon. Closing its window keeps syncing; clicking the widget reopens the same window.
 
 Requirements: macOS 14 or later. A prebuilt universal app supports Apple silicon and Intel. Xcode is not required to run a prebuilt app.
 

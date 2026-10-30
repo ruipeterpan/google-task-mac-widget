@@ -1,43 +1,112 @@
 import SwiftUI
 import AppKit
 
-@MainActor enum AppPresence {
-    static func apply(hideDockIcon: Bool) {
-        NSApp.setActivationPolicy(hideDockIcon ? .accessory : .regular)
+// Own one reusable window rather than letting URL events create WindowGroup scenes.
+@MainActor final class TaskWindowController {
+    static let shared = TaskWindowController()
+    private var window: NSWindow?
+
+    func show() {
+        if window == nil {
+            let content = TasksView(store: TaskStore.shared)
+                .frame(minWidth: 360, idealWidth: 390, minHeight: 420, idealHeight: 540)
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    Task { await TaskStore.shared.sync() }
+                }
+            let newWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 390, height: 540),
+                                     styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                                     backing: .buffered, defer: false)
+            newWindow.title = "TaskGlass"
+            newWindow.identifier = NSUserInterfaceItemIdentifier("tasks")
+            newWindow.isReleasedWhenClosed = false
+            newWindow.tabbingMode = .disallowed
+            newWindow.contentView = NSHostingView(rootView: content)
+            newWindow.center()
+            window = newWindow
+        }
+        NSApp.setActivationPolicy(.accessory)
+        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
-final class TaskGlassAppDelegate: NSObject, NSApplicationDelegate {
+
+@MainActor final class TaskGlassAppDelegate: NSObject, NSApplicationDelegate {
+    private var statusItem: NSStatusItem?
+    private var settingsWindow: NSWindow?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        AppPresence.apply(hideDockIcon: UserDefaults.standard.bool(forKey: "hideDockIcon"))
+        NSApp.setActivationPolicy(.accessory)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        item.button?.image = NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: "TaskGlass")
+        let menu = NSMenu()
+        addItem("Open TaskGlass", action: #selector(openTasks), to: menu)
+        addItem("Refresh now", action: #selector(refresh), to: menu)
+        menu.addItem(.separator())
+        addItem("Settings…", action: #selector(openSettings), key: ",", to: menu)
+        addItem("Quit TaskGlass", action: #selector(quit), key: "q", to: menu)
+        item.menu = menu
+        statusItem = item
+        installMainMenu()
+        openTasks()
+    }
+    private func addItem(_ title: String, action: Selector, key: String = "", to menu: NSMenu) {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        menu.addItem(item)
+    }
+    private func installMainMenu() {
+        let main = NSMenu()
+        let appMenu = NSMenu()
+        addItem("Settings…", action: #selector(openSettings), key: ",", to: appMenu)
+        addItem("Quit TaskGlass", action: #selector(quit), key: "q", to: appMenu)
+        let appItem = NSMenuItem(); appItem.submenu = appMenu; main.addItem(appItem)
+        let fileMenu = NSMenu(title: "File")
+        fileMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        let fileItem = NSMenuItem(); fileItem.submenu = fileMenu; main.addItem(fileItem)
+        let editMenu = NSMenu(title: "Edit")
+        for (title, action, key) in [("Undo", "undo:", "z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
+            editMenu.addItem(withTitle: title, action: Selector(action), keyEquivalent: key)
+        }
+        let editItem = NSMenuItem(); editItem.submenu = editMenu; main.addItem(editItem)
+        NSApp.mainMenu = main
+    }
+    @objc func openTasks() { TaskWindowController.shared.show() }
+    @objc func refresh() { Task { await TaskStore.shared.sync() } }
+    @objc func openSettings() {
+        if settingsWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 430, height: 370),
+                                  styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.title = "TaskGlass Settings"
+            window.isReleasedWhenClosed = false
+            window.contentView = NSHostingView(rootView: TaskGlassSettings(store: TaskStore.shared))
+            window.center()
+            settingsWindow = window
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    @objc func quit() { NSApp.terminate(nil) }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        openTasks()
+        return false
+    }
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard urls.contains(where: { $0.scheme == "taskglass" && $0.host == "open" }) else { return }
+        openTasks()
+        refresh()
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 }
 
-@main struct TaskGlassApp: App {
-    @NSApplicationDelegateAdaptor(TaskGlassAppDelegate.self) private var appDelegate
-    @StateObject private var store = TaskStore.shared
-    var body: some Scene {
-        WindowGroup("TaskGlass", id: "tasks") {
-            TasksView(store: store).frame(minWidth: 360, idealWidth: 390, minHeight: 420, idealHeight: 540)
-                .onOpenURL { _ in NSApp.activate(ignoringOtherApps: true); Task { await store.sync() } }
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in Task { await store.sync() } }
-        }.defaultSize(width: 390, height: 540)
-        Settings { TaskGlassSettings(store: store) }
-        MenuBarExtra("TaskGlass", systemImage: "checkmark.circle") {
-            MenuContents(store: store)
-        }
-    }
-}
-struct MenuContents: View {
-    @ObservedObject var store: TaskStore
-    @Environment(\.openWindow) var openWindow
-    var body: some View {
-        Button("Open TaskGlass") { openWindow(id: "tasks"); NSApp.activate(ignoringOtherApps: true) }
-        Button("Refresh now") { Task { await store.sync() } }.disabled(store.busy || !store.connected)
-        if let updated = store.updated { Text("Synced \(updated.formatted(date: .omitted, time: .shortened))") }
-        Divider()
-        SettingsLink { Text("Settings…") }.keyboardShortcut(",")
-        Button("Quit TaskGlass") { NSApplication.shared.terminate(nil) }
+// AppKit owns application events so SwiftUI cannot create an extra scene on reopen.
+@main @MainActor struct TaskGlassApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = TaskGlassAppDelegate()
+        app.setActivationPolicy(.accessory)
+        app.delegate = delegate
+        withExtendedLifetime(delegate) { app.run() }
     }
 }
 struct TasksView: View {
@@ -55,7 +124,7 @@ struct TasksView: View {
                 Spacer()
                 if store.busy { ProgressView().controlSize(.small) }
                 Button { Task { await store.sync() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.borderless).disabled(store.busy || !store.connected).help("Refresh tasks")
-                Menu { SettingsLink { Text("Settings…") }; Button("Connection setup") { showSetup = true }; if store.connected { Button("Disconnect Google…", role: .destructive) { confirmDisconnect = true }.disabled(store.busy) } } label: { Image(systemName: "gearshape") }.menuStyle(.borderlessButton).frame(width: 24)
+                Menu { Button("Settings…") { (NSApp.delegate as? TaskGlassAppDelegate)?.openSettings() }; Button("Connection setup") { showSetup = true }; if store.connected { Button("Disconnect Google…", role: .destructive) { confirmDisconnect = true }.disabled(store.busy) } } label: { Image(systemName: "gearshape") }.menuStyle(.borderlessButton).frame(width: 24)
             }
             if store.connected {
                 Picker("List", selection: $store.selectedList) { ForEach(store.lists) { Text($0.title).tag($0.id) } }
@@ -202,13 +271,11 @@ struct TaskEditor: View {
 
 struct TaskGlassSettings: View {
     @ObservedObject var store: TaskStore
-    @AppStorage("hideDockIcon") private var hideDockIcon = false
     var body: some View {
         Form {
             Section("Appearance") {
-                Toggle("Hide Dock icon", isOn: $hideDockIcon)
-                    .onChange(of: hideDockIcon) { _, value in AppPresence.apply(hideDockIcon: value) }
-                Text("TaskGlass stays in the menu bar and continues syncing. Use its menu bar icon to open the task window or settings.")
+                LabeledContent("App location", value: "Menu bar only")
+                Text("TaskGlass stays in the menu bar, never in the Dock. Closing the window keeps syncing. Use the widget or menu bar icon to reopen it; Quit stops syncing.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Google Tasks") {
