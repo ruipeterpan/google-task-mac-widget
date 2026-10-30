@@ -1,6 +1,10 @@
 import SwiftUI
 import AppKit
 
+extension Notification.Name {
+    static let taskGlassFocusComposer = Notification.Name("TaskGlass.focusComposer")
+}
+
 // Own one reusable window rather than letting URL events create WindowGroup scenes.
 @MainActor final class TaskWindowController {
     static let shared = TaskWindowController()
@@ -28,6 +32,9 @@ import AppKit
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .taskGlassFocusComposer, object: nil)
+        }
     }
 }
 
@@ -111,6 +118,7 @@ import AppKit
 }
 struct TasksView: View {
     @ObservedObject var store: TaskStore
+    @FocusState private var titleFocused: Bool
     @State private var title = ""
     @State private var details = ""
     @State private var showSetup = false
@@ -168,7 +176,11 @@ struct TasksView: View {
                 Link("Google Tasks ↗", destination: URL(string: "https://tasks.google.com/")!)
             }.font(.caption).foregroundStyle(.secondary)
             Text("Sync every \(store.refreshInterval.label) while running. macOS schedules widget updates.").font(.caption2).foregroundStyle(.tertiary)
-        }.padding(22).sheet(isPresented: $showSetup) { SetupView(store: store) }
+        }.padding(22)
+            .onAppear { focusComposer() }
+            .onReceive(NotificationCenter.default.publisher(for: .taskGlassFocusComposer)) { _ in focusComposer() }
+            .onChange(of: store.connected) { _, connected in if connected { focusComposer() } }
+            .sheet(isPresented: $showSetup) { SetupView(store: store) }
             .sheet(item: $editingTask) { task in
                 TaskEditor(store: store, task: task, listID: store.selectedList, initialTitle: task.title)
             }
@@ -178,7 +190,8 @@ struct TasksView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 TextField("Add a task", text: $title)
-                    .textFieldStyle(.plain).onSubmit { add() }.accessibilityLabel("New task title")
+                    .textFieldStyle(.plain).focused($titleFocused)
+                    .onSubmit { add() }.accessibilityLabel("New task title")
                 Button { add() } label: { Image(systemName: "plus.circle.fill").font(.title3) }
                     .buttonStyle(.plain).foregroundStyle(.blue)
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.busy)
@@ -188,16 +201,32 @@ struct TasksView: View {
             Divider()
             TextField("Details (optional)", text: $details, axis: .vertical)
                 .textFieldStyle(.plain).font(.callout).lineLimit(1...4)
+                .onKeyPress(.return, phases: .down) { press in
+                    if press.modifiers.contains(.shift) {
+                        guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView else { return .ignored }
+                        editor.insertText("\n", replacementRange: editor.selectedRange())
+                        return .handled
+                    }
+                    add()
+                    return .handled
+                }
                 .accessibilityLabel("New task details (optional)")
+                .help("Return adds the task; Shift-Return inserts a new line")
         }.padding(11)
             .background(.background, in: RoundedRectangle(cornerRadius: 9))
             .overlay(RoundedRectangle(cornerRadius: 9).stroke(.quaternary))
     }
+    private func focusComposer() {
+        guard store.connected, !showSetup, editingTask == nil else { return }
+        titleFocused = true
+    }
     private func add() {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !store.busy else { return }
         let draft = TaskDraft(title: title, details: details), listID = store.selectedList
         Task {
             if await store.saveTask(draft, listID: listID), title == draft.title, details == draft.details {
                 title = ""; details = ""
+                focusComposer()
             }
         }
     }

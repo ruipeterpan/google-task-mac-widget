@@ -8,6 +8,7 @@ A native macOS desktop widget and menu bar companion for Google Tasks. Built wit
 - Interactive circles complete tasks in Google Tasks. The circle fills, the count decreases, and the checked row briefly remains before disappearing. Failed requests restore its unchecked state.
 - Inline task creation: title above optional details. Press Enter from the title or Command-Return to add. Existing tasks can be edited with the pencil button.
 - Refresh every 30 seconds, 1 minute, 3 minutes, 5 minutes, 10 minutes or 30 minutes. Settings are saved; the default is one minute.
+- Keyboard-first task entry: opening focuses the title; Return submits from title or details, and Shift-Return inserts a details line.
 - Always available in the menu bar, without a Dock icon. Widget clicks and the menu reuse one task window.
 - Browser-based Google authorization with PKCE and state validation; credentials stay in macOS Keychain.
 - Pagination for Google task lists and tasks, with local cached data retained during network errors.
