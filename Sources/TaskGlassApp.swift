@@ -133,7 +133,10 @@ struct TasksView: View {
                 Spacer()
                 if store.busy { ProgressView().controlSize(.small) }
                 Button { Task { await store.sync() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.borderless).disabled(store.busy || !store.connected).help("Refresh tasks")
-                Menu { Button("Settings…") { (NSApp.delegate as? TaskGlassAppDelegate)?.openSettings() }; Button("Connection setup") { showSetup = true }; if store.connected { Button("Disconnect Google…", role: .destructive) { confirmDisconnect = true }.disabled(store.busy) } } label: { Image(systemName: "gearshape") }.menuStyle(.borderlessButton).frame(width: 24)
+                Menu { Button("Settings…") { (NSApp.delegate as? TaskGlassAppDelegate)?.openSettings() }; Button("Connection setup") { showSetup = true }; if store.connected { Button("Disconnect Google…", role: .destructive) { confirmDisconnect = true }.disabled(store.busy) } } label: { Image(systemName: "gearshape").font(.system(size: 16)) }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden)
+                    .frame(width: 28, height: 28).help("Settings and connection")
+                    .accessibilityLabel("Settings and connection")
             }
             if store.connected {
                 Picker("List", selection: $store.selectedList) { ForEach(store.lists) { Text($0.title).tag($0.id) } }
