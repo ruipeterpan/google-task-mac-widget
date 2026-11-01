@@ -90,3 +90,13 @@ expect(RefreshInterval.allCases.map(\.label) == ["30 seconds", "1 minute", "3 mi
 expect(RefreshInterval.savedValue(0) == .oneMinute && RefreshInterval.savedValue(-30) == .oneMinute && RefreshInterval.savedValue(999) == .oneMinute, "Missing or invalid preferences must safely use the default")
 for interval in RefreshInterval.allCases { expect(RefreshInterval.savedValue(interval.rawValue) == interval, "Saved refresh choice must round trip") }
 print("PASS: six refresh intervals, labels/durations, saved settings, and default handling")
+
+let linkNotes = "Read 📚 https://example.com/a?q=1&x=2, then\nvisit https://example.org/path."
+let links = TaskDetailsLinks.detect(in: linkNotes)
+expect(links.count == 2, "Both URLs in multiline Unicode details should be detected")
+let linkLabels = links.map { (linkNotes as NSString).substring(with: $0.range) }
+expect(linkLabels == ["https://example.com/a?q=1&x=2", "https://example.org/path"], "Link ranges should preserve URLs and exclude sentence punctuation")
+expect(links[0].url.absoluteString == "https://example.com/a?q=1&x=2", "Query string should remain intact")
+expect(TaskDetailsLinks.detect(in: "Just plain details.").isEmpty, "Plain details should stay plain")
+expect(TaskDetailsLinks.detect(in: "file:///tmp/example.txt").isEmpty, "Only browser HTTP/HTTPS links should be enabled")
+print("PASS: details links, Unicode ranges, multiline text, query strings, punctuation, and plain-text preservation")

@@ -151,7 +151,7 @@ struct TasksView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(task.title).textSelection(.enabled)
                                     if let notes = task.notes, !notes.isEmpty {
-                                        Text(notes).font(.caption).foregroundStyle(.secondary).lineLimit(3).textSelection(.enabled)
+                                        Text(linkedDetails(notes)).font(.caption).lineLimit(3).textSelection(.enabled)
                                     }
                                     if let date = task.dueDate { Text(date, format: .dateTime.month(.abbreviated).day()).font(.caption).foregroundStyle(Calendar.current.startOfDay(for: date) < Calendar.current.startOfDay(for: Date()) ? .red : .secondary) }
                                 }
@@ -189,6 +189,19 @@ struct TasksView: View {
                 TaskEditor(store: store, task: task, listID: store.selectedList, initialTitle: task.title)
             }
             .confirmationDialog("Disconnect Google Tasks and remove the local task cache?", isPresented: $confirmDisconnect) { Button("Disconnect", role: .destructive) { store.disconnect() } }
+    }
+    private func linkedDetails(_ notes: String) -> AttributedString {
+        var text = AttributedString(notes)
+        text.foregroundColor = .secondary
+        for link in TaskDetailsLinks.detect(in: notes) {
+            guard let sourceRange = Range(link.range, in: notes),
+                  let lower = AttributedString.Index(sourceRange.lowerBound, within: text),
+                  let upper = AttributedString.Index(sourceRange.upperBound, within: text) else { continue }
+            text[lower..<upper].link = link.url
+            text[lower..<upper].foregroundColor = .blue
+            text[lower..<upper].underlineStyle = .single
+        }
+        return text
     }
     private var taskComposer: some View {
         VStack(alignment: .leading, spacing: 8) {

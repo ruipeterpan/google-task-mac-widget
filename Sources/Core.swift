@@ -125,3 +125,19 @@ enum RefreshInterval: Int, CaseIterable, Identifiable {
     }
     static func savedValue(_ seconds: Int) -> Self { Self(rawValue: seconds) ?? .oneMinute }
 }
+
+struct TaskDetailsLink {
+    var range: NSRange
+    var url: URL
+}
+
+enum TaskDetailsLinks {
+    static func detect(in text: String) -> [TaskDetailsLink] {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return [] }
+        return detector.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap { match in
+            guard let url = match.url, let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http" else { return nil }
+            return TaskDetailsLink(range: match.range, url: url)
+        }
+    }
+}
