@@ -132,22 +132,32 @@ struct TasksView: View {
                 Text("TaskGlass").font(.title2.bold())
                 Spacer()
                 if store.busy { ProgressView().controlSize(.small) }
-                Button { Task { await store.sync() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.borderless).disabled(store.busy || !store.connected).help("Refresh tasks")
-                Menu { Button("Settings…") { (NSApp.delegate as? TaskGlassAppDelegate)?.openSettings() }; Button("Connection setup") { showSetup = true }; if store.connected { Button("Disconnect Google…", role: .destructive) { confirmDisconnect = true }.disabled(store.busy) } } label: { Image(systemName: "gearshape").font(.system(size: 16)) }
+                Button { Task { await store.sync() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.borderless).disabled(store.busy || !store.connected || store.needsReconnect).help("Refresh tasks")
+                Menu { Button("Settings…") { (NSApp.delegate as? TaskGlassAppDelegate)?.openSettings() }; Button("Connection setup") { showSetup = true }; if store.hasClient { Button("Reconnect Google Tasks") { Task { await store.signIn() } }.disabled(store.busy) }; if store.connected { Button("Disconnect Google…", role: .destructive) { confirmDisconnect = true }.disabled(store.busy) } } label: { Image(systemName: "gearshape").font(.system(size: 16)) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden)
                     .frame(width: 28, height: 28).help("Settings and connection")
                     .accessibilityLabel("Settings and connection")
             }
+            if store.needsReconnect {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Google connection expired", systemImage: "exclamationmark.circle").font(.headline)
+                    Text("Your tasks below are cached. Reconnect to resume syncing; your app configuration is saved.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Reconnect Google Tasks") { Task { await store.signIn() } }
+                        .buttonStyle(.borderedProminent).disabled(store.busy)
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+            }
             if store.connected {
-                Picker("List", selection: $store.selectedList) { ForEach(store.lists) { Text($0.title).tag($0.id) } }
+                Picker("List", selection: $store.selectedList) { if store.lists.isEmpty { Text(store.listTitle).tag(store.selectedList) }; ForEach(store.lists) { Text($0.title).tag($0.id) } }
                     .onChange(of: store.selectedList) { _, _ in Task { await store.sync() } }
-                taskComposer
+                taskComposer.disabled(store.needsReconnect)
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if store.tasks.isEmpty { ContentUnavailableView("All clear", systemImage: "checkmark.circle", description: Text("No incomplete tasks in this list.")) }
                         ForEach(store.tasks) { task in
                             HStack(alignment: .top, spacing: 10) {
-                                Button { Task { await store.complete(task) } } label: { Image(systemName: "circle").font(.title3).foregroundStyle(.secondary) }.buttonStyle(.plain).disabled(store.busy).accessibilityLabel("Complete \(task.title)")
+                                Button { Task { await store.complete(task) } } label: { Image(systemName: "circle").font(.title3).foregroundStyle(.secondary) }.buttonStyle(.plain).disabled(store.busy || store.needsReconnect).accessibilityLabel("Complete \(task.title)")
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(task.title).textSelection(.enabled)
                                     if let notes = task.notes, !notes.isEmpty {
@@ -157,7 +167,7 @@ struct TasksView: View {
                                 }
                                 Spacer()
                                 Button { editingTask = task } label: { Image(systemName: "square.and.pencil") }
-                                    .buttonStyle(.borderless).foregroundStyle(.secondary).disabled(store.busy)
+                                    .buttonStyle(.borderless).foregroundStyle(.secondary).disabled(store.busy || store.needsReconnect)
                                     .accessibilityLabel("Edit \(task.title)").help("Edit title and details")
                             }.padding(.vertical, 11).padding(.leading, task.parent == nil ? 0 : 20)
                             Divider()
@@ -179,11 +189,12 @@ struct TasksView: View {
                 Spacer()
                 Link("Google Tasks ↗", destination: URL(string: "https://tasks.google.com/")!)
             }.font(.caption).foregroundStyle(.secondary)
-            Text("Sync every \(store.refreshInterval.label) while running. macOS schedules widget updates.").font(.caption2).foregroundStyle(.tertiary)
+            Text(store.needsReconnect ? "Sync paused until you reconnect Google Tasks." : "Sync every \(store.refreshInterval.label) while running. macOS schedules widget updates.").font(.caption2).foregroundStyle(.tertiary)
         }.padding(22)
             .onAppear { focusComposer() }
             .onReceive(NotificationCenter.default.publisher(for: .taskGlassFocusComposer)) { _ in focusComposer() }
             .onChange(of: store.connected) { _, connected in if connected { focusComposer() } }
+            .onChange(of: store.needsReconnect) { _, required in if !required { focusComposer() } }
             .sheet(isPresented: $showSetup) { SetupView(store: store) }
             .sheet(item: $editingTask) { task in
                 TaskEditor(store: store, task: task, listID: store.selectedList, initialTitle: task.title)
@@ -245,7 +256,7 @@ struct TasksView: View {
             .overlay(RoundedRectangle(cornerRadius: 9).stroke(.quaternary))
     }
     private func focusComposer() {
-        guard store.connected, !showSetup, editingTask == nil else { return }
+        guard store.connected, !store.needsReconnect, !showSetup, editingTask == nil else { return }
         composerFocus = .title
     }
     private func add() {
@@ -270,10 +281,10 @@ struct SetupView: View {
                 .font(.callout).foregroundStyle(.secondary)
             Link("Open Google Cloud setup ↗", destination: URL(string: "https://console.cloud.google.com/apis/library/tasks.googleapis.com")!)
             Button(store.hasClient ? "Replace OAuth JSON…" : "Import OAuth JSON…") { store.importClient() }.disabled(store.busy || store.connected)
-            Button("Sign in with Google") { Task { await store.signIn(); if store.connected { dismiss() } } }.buttonStyle(.borderedProminent).disabled(!store.hasClient || store.busy || store.connected)
+            Button(store.connected ? "Reconnect Google Tasks" : "Sign in with Google") { Task { await store.signIn(); if store.connected && !store.needsReconnect { dismiss() } } }.buttonStyle(.borderedProminent).disabled(!store.hasClient || store.busy)
             if store.busy { HStack { ProgressView().controlSize(.small); Text("Finish sign-in in your browser…"); Button("Cancel sign-in") { store.auth.cancel() } } }
             if let error = store.error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
-            Text("Google testing-mode refresh tokens may expire after 7 days. Reconnect if Google asks. No Google password is entered here.").font(.caption).foregroundStyle(.secondary)
+            Text("Normal access tokens renew automatically. Reconnect if Google expires or revokes authorization. Testing-mode projects have a seven-day authorization limit. No Google password is entered here.").font(.caption).foregroundStyle(.secondary)
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.cancelAction) }
         }.padding(24).frame(width: 480)
     }
@@ -336,7 +347,10 @@ struct TaskGlassSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Google Tasks") {
-                LabeledContent("Connection", value: store.connected ? "Connected" : "Not connected")
+                LabeledContent("Connection", value: store.needsReconnect ? "Reconnect required" : (store.connected ? "Connected" : "Not connected"))
+                if store.hasClient {
+                    Button("Reconnect Google Tasks") { Task { await store.signIn() } }.disabled(store.busy)
+                }
                 Picker("Refresh every", selection: $store.refreshInterval) {
                     ForEach(RefreshInterval.allCases) { interval in Text(interval.label).tag(interval) }
                 }

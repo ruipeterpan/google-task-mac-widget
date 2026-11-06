@@ -13,6 +13,7 @@ import WidgetKit
     @Published var updated: Date?
     @Published var connected = false
     @Published var hasClient = false
+    @Published private(set) var needsReconnect = false
     @Published var refreshInterval = RefreshInterval.savedValue(UserDefaults.standard.integer(forKey: "refreshIntervalSeconds")) {
         didSet {
             UserDefaults.standard.set(refreshInterval.rawValue, forKey: "refreshIntervalSeconds")
@@ -24,8 +25,10 @@ import WidgetKit
     private var completionFeedback: [CompletionFeedback] = []
     init() {
         connected = auth.signedIn; hasClient = auth.client != nil
+        needsReconnect = auth.reauthenticationRequired
         if let cache = SharedCache.read() { tasks = cache.tasks; listTitle = cache.listTitle; updated = cache.updated }
         scheduleRefresh()
+        if needsReconnect { try? publish() }
         Task { await sync() }
     }
     private func scheduleRefresh() {
@@ -45,12 +48,24 @@ import WidgetKit
     }
     func signIn() async {
         guard !busy else { return }; busy = true; error = nil
-        do { try await auth.signIn(); connected = true } catch { self.error = error.localizedDescription }
-        busy = false
-        if connected { await sync() }
+        do {
+            // Keep the previous credentials/cache unless the browser flow succeeds.
+            try await auth.signIn()
+            connected = true; needsReconnect = false; hasClient = auth.client != nil
+            try? publish()
+            busy = false
+            await sync()
+        } catch { handleFailure(error); busy = false }
+    }
+    private func handleFailure(_ failure: Error) {
+        error = failure.localizedDescription
+        if auth.reauthenticationRequired {
+            needsReconnect = true
+            try? publish()
+        }
     }
     func disconnect() {
-        auth.disconnect(); connected = false; hasClient = false; tasks = []; lists = []; updated = nil; error = nil
+        auth.disconnect(); needsReconnect = false; connected = false; hasClient = false; tasks = []; lists = []; updated = nil; error = nil
         completionFeedback = []
         SharedCache.remove(); WidgetCenter.shared.reloadAllTimelines()
     }
@@ -74,7 +89,7 @@ import WidgetKit
     }
     private func segment(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: .alphanumerics)! }
     func sync() async {
-        guard connected, !busy else { return }; busy = true; defer { busy = false }
+        guard connected, !needsReconnect, !busy else { return }; busy = true; defer { busy = false }
         do {
             let fetchedLists: [TaskList] = try await pages("users/@me/lists")
             lists = fetchedLists
@@ -87,10 +102,10 @@ import WidgetKit
             UserDefaults.standard.set(selectedList, forKey: "selectedList")
             tasks = fetched.filter { !$0.isComplete }.sorted { ($0.position ?? "") < ($1.position ?? "") }
             updated = Date(); try publish(); error = nil
-        } catch { self.error = error.localizedDescription }
+        } catch { handleFailure(error) }
     }
     private func publish() throws {
-        try SharedCache.write(TaskCache(listTitle: listTitle, tasks: tasks, updated: updated ?? Date(), listID: selectedList, completionFeedback: completionFeedback.filter { $0.listID == selectedList }))
+        try SharedCache.write(TaskCache(listTitle: listTitle, tasks: tasks, updated: updated ?? Date(), listID: selectedList, completionFeedback: completionFeedback.filter { $0.listID == selectedList }, needsReconnect: needsReconnect))
         WidgetCenter.shared.reloadTimelines(ofKind: "TaskGlassWidget")
     }
     func complete(_ task: GoogleTask) async {
@@ -104,6 +119,7 @@ import WidgetKit
             guard Date() < deadline else { throw AppError.message("TaskGlass is still syncing. Please try again shortly.") }
             try await Task.sleep(for: .milliseconds(100))
         }
+        guard !needsReconnect else { throw AppError.message("Open TaskGlass and reconnect Google Tasks to resume syncing.") }
         guard connected else { throw AppError.message("Open TaskGlass and connect Google Tasks first.") }
         guard !taskID.isEmpty, !listID.isEmpty else { throw AppError.message("Refresh TaskGlass and try again.") }
         // An already checked row is presentation feedback, not a request to
@@ -137,7 +153,7 @@ import WidgetKit
             }
         } catch {
             completionFeedback.removeAll { $0.listID == listID && $0.task.id == taskID }
-            self.error = error.localizedDescription
+            handleFailure(error)
             try? publish() // Roll back the circle and count on API failure.
             busy = false
             throw error
@@ -148,7 +164,7 @@ import WidgetKit
     }
     func saveTask(_ draft: TaskDraft, taskID: String? = nil, listID: String? = nil) async -> Bool {
         let targetList = listID ?? selectedList
-        guard connected, !targetList.isEmpty, !busy else { return false }
+        guard connected, !needsReconnect, !targetList.isEmpty, !busy else { return false }
         let fields: [String: String]
         do { fields = try draft.apiFields() }
         catch { self.error = error.localizedDescription; return false }
@@ -156,7 +172,7 @@ import WidgetKit
         do {
             let path = "lists/\(segment(targetList))/tasks" + (taskID.map { "/" + segment($0) } ?? "")
             _ = try await request(path, method: taskID == nil ? "POST" : "PATCH", body: fields)
-        } catch { self.error = error.localizedDescription; busy = false; return false }
+        } catch { handleFailure(error); busy = false; return false }
         busy = false; await sync(); return true
     }
 }

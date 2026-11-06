@@ -5,6 +5,7 @@ The development implementation has been checked with:
 - Signed Xcode builds of both the companion and widget extension.
 - Strict verification of bundle signatures and matching App Group entitlements.
 - Native UI checks for the task composer, details editor and settings.
+- Version 0.5: a live invalid-grant failure displayed the Reconnect prompt while retaining the cached task and original sync time. Reconnecting with the saved OAuth client cleared the warning and resumed sync. Automated recovery tests cover persistent retry suppression, credential preservation, cancellation, transport/server errors, invalid-client handling and normal token refresh. This does not establish why Google revoked an earlier grant or guarantee future token validity.
 - Version 0.4.4: checked blue underlined HTTP/HTTPS links inside task details; clicking a temporary task link opened the default browser. Completed the test task afterward. Automated checks cover Unicode ranges, multiple URLs, query strings, punctuation and non-link text.
 - Version 0.4.2: visually checked the settings gear without the overlapping dropdown indicator and verified its menu opens; inspected the new white checklist icon with blue accents.
 - Version 0.4.1: Tab moves from the title directly to Details while the add button is enabled; Shift-Tab returns directly to the title. Checked using an unsaved draft.

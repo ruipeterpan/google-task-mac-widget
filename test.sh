@@ -11,3 +11,6 @@ mkdir -p "$TEST_ROOT/modules"
 
 "$SWIFT_COMPILER" -sdk "$SDK" -parse-as-library -swift-version 5 -module-cache-path "$TEST_ROOT/modules" Sources/Core.swift Sources/Auth.swift Tests/ListenerTests.swift -o "$TEST_ROOT/listener-tests"
 "$TEST_ROOT/listener-tests"
+
+"$SWIFT_COMPILER" -sdk "$SDK" -parse-as-library -swift-version 5 -module-cache-path "$TEST_ROOT/modules" Sources/Core.swift Sources/Auth.swift Tests/AuthRecoveryTests.swift -o "$TEST_ROOT/auth-recovery-tests"
+"$TEST_ROOT/auth-recovery-tests"

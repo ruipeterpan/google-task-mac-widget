@@ -54,11 +54,16 @@ struct WidgetContent: View {
                 }
                 Spacer(minLength: 6)
                 HStack(spacing: 4) {
+                    if cache.needsReconnect == true {
+                        Image(systemName: "exclamationmark.circle").font(.system(size: 9))
+                        Text("Reconnect Google Tasks").font(.system(size: 10)).foregroundStyle(.orange)
+                    } else {
                     Image(systemName: "arrow.clockwise").font(.system(size: 9))
                     Text(cache.updated, style: .relative).font(.system(size: 10))
                     if entry.preview { Text("· Preview").font(.system(size: 10)) }
+                    }
                 }.foregroundStyle(.tertiary)
-                    .accessibilityLabel(Text("Last refreshed \(cache.updated, style: .relative) ago"))
+                    .accessibilityLabel(cache.needsReconnect == true ? Text("Reconnect Google Tasks. Cached tasks shown.") : Text("Last refreshed \(cache.updated, style: .relative) ago"))
             } else {
                 Text("Open TaskGlass to connect Google Tasks.").font(taskFont).foregroundStyle(.secondary).padding(.top, 10)
                 Spacer(minLength: 0)
@@ -73,7 +78,7 @@ struct WidgetContent: View {
                                     Toggle(isOn: task.isComplete, intent: CompleteTaskIntent(taskID: task.id, listID: listID)) {
                                         Text(task.title)
                                     }.toggleStyle(CompletionCircleStyle())
-                                        .disabled(task.isComplete)
+                                        .disabled(task.isComplete || cache.needsReconnect == true)
                                         .accessibilityLabel("Complete \(task.title)")
                                 } else { CompletionCircle(isChecked: task.isComplete) }
                                 Text(task.title).font(taskFont)

@@ -13,43 +13,65 @@ func makeOAuthListener(onConnection: @escaping (NWConnection) -> Void) throws ->
     return server
 }
 
+protocol AuthCredentialStorage {
+    func read(_ account: String) -> Data?
+    func save(_ account: String, _ data: Data) throws
+    func remove(_ account: String)
+}
+struct KeychainAuthCredentials: AuthCredentialStorage {
+    private let service = "local.taskglass.google"
+    private func query(_ account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+    }
+    func read(_ account: String) -> Data? {
+        var q = query(account); q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        return SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
+    }
+    func save(_ account: String, _ data: Data) throws {
+        let q = query(account)
+        let update = SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if update == errSecItemNotFound {
+            var item = q; item[kSecValueData as String] = data; item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            guard SecItemAdd(item as CFDictionary, nil) == errSecSuccess else { throw AppError.message("Could not save credentials to Keychain.") }
+        } else if update != errSecSuccess { throw AppError.message("Could not update Keychain credentials.") }
+    }
+    func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
+}
+
 // A desktop OAuth flow in the system browser, with PKCE, state validation and a loopback callback.
 @MainActor final class GoogleAuth {
-    private let service = "local.taskglass.google"
+    private let credentials: AuthCredentialStorage
+    private let session: URLSession
+    private let preferences: UserDefaults
     private var listener: NWListener?
     private var continuation: CheckedContinuation<String, Error>?
     private var timeout: Task<Void, Never>?
     private var expectedState = ""
     private(set) var client: OAuthClient?
     private var tokens: Tokens?
+    private(set) var reauthenticationRequired = false
     var signedIn: Bool { tokens != nil && client != nil }
-    init() {
-        if let data = read("client") { client = try? JSONDecoder().decode(OAuthClient.self, from: data) }
-        if let data = read("tokens") { tokens = try? JSONDecoder().decode(Tokens.self, from: data) }
+    init(credentials: AuthCredentialStorage = KeychainAuthCredentials(), session: URLSession = .shared, preferences: UserDefaults = .standard) {
+        self.credentials = credentials; self.session = session; self.preferences = preferences
+        if let data = credentials.read("client") { client = try? JSONDecoder().decode(OAuthClient.self, from: data) }
+        if let data = credentials.read("tokens") { tokens = try? JSONDecoder().decode(Tokens.self, from: data) }
+        reauthenticationRequired = signedIn && preferences.bool(forKey: "googleReauthenticationRequired")
     }
-    private func read(_ account: String) -> Data? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account, kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
-        var result: CFTypeRef?; return SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
-    }
-    private func save(_ account: String, _ data: Data) throws {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
-        let update = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if update == errSecItemNotFound {
-            var item = query; item[kSecValueData as String] = data; item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            guard SecItemAdd(item as CFDictionary, nil) == errSecSuccess else { throw AppError.message("Could not save credentials to Keychain.") }
-        } else if update != errSecSuccess { throw AppError.message("Could not update Keychain credentials.") }
+    private func setReauthenticationRequired(_ value: Bool) {
+        reauthenticationRequired = value
+        preferences.set(value, forKey: "googleReauthenticationRequired")
     }
     func importClient(_ data: Data) throws {
         let value = try OAuthClient.load(data)
         guard value.client_id.hasSuffix(".apps.googleusercontent.com") else { throw AppError.message("Choose the JSON file for a Google Desktop app OAuth client.") }
-        try save("client", JSONEncoder().encode(value)); client = value
+        try credentials.save("client", JSONEncoder().encode(value)); client = value
     }
     func disconnect() {
         cancel()
-        for account in ["client", "tokens"] {
-            SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account] as CFDictionary)
-        }
+        for account in ["client", "tokens"] { credentials.remove(account) }
         client = nil; tokens = nil
+        setReauthenticationRequired(false)
     }
     private func random() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
@@ -136,14 +158,29 @@ func makeOAuthListener(onConnection: @escaping (NWConnection) -> Void) throws ->
     private func exchange(_ fields: [String: String], previousRefresh: String?) async throws {
         var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
         request.httpMethod = "POST"; request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type"); request.httpBody = formEncoded(fields)
-        let (data, response) = try await URLSession.shared.data(for: request); try checkHTTP(data, response)
+        let (data, response) = try await session.data(for: request)
+        do { try checkHTTP(data, response, context: .oauth) }
+        catch let failure as GoogleServiceError {
+            if failure.requiresReauthentication, previousRefresh != nil {
+                setReauthenticationRequired(true)
+                // Diagnostics contain only error codes/times, never credential values.
+                preferences.set(failure.code, forKey: "googleLastAuthErrorCode")
+                preferences.set(failure.subtype, forKey: "googleLastAuthErrorSubtype")
+                preferences.set(Date(), forKey: "googleLastAuthErrorAt")
+            }
+            throw failure
+        }
         struct Reply: Decodable { var access_token: String; var refresh_token: String?; var expires_in: Double }
         let reply = try JSONDecoder().decode(Reply.self, from: data)
         guard let refresh = reply.refresh_token ?? previousRefresh else { throw AppError.message("Google did not grant offline access. Sign in again.") }
         let value = Tokens(access: reply.access_token, refresh: refresh, expiry: Date().addingTimeInterval(reply.expires_in))
-        try save("tokens", JSONEncoder().encode(value)); tokens = value
+        try credentials.save("tokens", JSONEncoder().encode(value)); tokens = value
+        setReauthenticationRequired(false)
+        preferences.set(Date(), forKey: "googleLastTokenExchangeAt")
+        if previousRefresh == nil { preferences.set(Date(), forKey: "googleLastSignInAt") }
     }
     func accessToken() async throws -> String {
+        guard !reauthenticationRequired else { throw AppError.message("Reconnect Google Tasks to resume syncing.") }
         guard let tokens, let client else { throw AppError.message("Connect Google Tasks first.") }
         if tokens.expiry.timeIntervalSinceNow > 60 { return tokens.access }
         var fields = ["client_id": client.client_id, "refresh_token": tokens.refresh, "grant_type": "refresh_token"]

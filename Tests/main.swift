@@ -100,3 +100,37 @@ expect(links[0].url.absoluteString == "https://example.com/a?q=1&x=2", "Query st
 expect(TaskDetailsLinks.detect(in: "Just plain details.").isEmpty, "Plain details should stay plain")
 expect(TaskDetailsLinks.detect(in: "file:///tmp/example.txt").isEmpty, "Only browser HTTP/HTTPS links should be enabled")
 print("PASS: details links, Unicode ranges, multiline text, query strings, punctuation, and plain-text preservation")
+
+let oauthResponse = HTTPURLResponse(url: URL(string: "https://oauth2.googleapis.com/token")!, statusCode: 400, httpVersion: nil, headerFields: nil)!
+for (payload, code, reconnect) in [
+    (#"{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"#, "invalid_grant", true),
+    (#"{"error":"invalid_client","error_description":"Bad client"}"#, "invalid_client", false),
+    (#"{"error":"invalid_request","error_description":"Missing grant_type"}"#, "invalid_request", false)
+] {
+    do { try checkHTTP(Data(payload.utf8), oauthResponse, context: .oauth); fatalError("OAuth failure accepted") }
+    catch let error as GoogleServiceError {
+        expect(error.code == code, "OAuth error code was lost")
+        expect(error.requiresReauthentication == reconnect, "OAuth failure misclassified")
+        expect(error.detail != nil, "OAuth error description was lost")
+    }
+}
+do {
+    try checkHTTP(Data(#"{"error":"invalid_grant","error_subtype":"invalid_rapt"}"#.utf8), oauthResponse, context: .oauth)
+    fatalError("Session expiry accepted")
+} catch let error as GoogleServiceError {
+    expect(error.subtype == "invalid_rapt", "Account policy subtype was lost")
+    expect(error.localizedDescription.contains("session policy"), "Session policy needs a specific explanation")
+}
+do {
+    try checkHTTP(Data("not JSON".utf8), oauthResponse)
+    fatalError("Malformed failure accepted")
+} catch {
+    expect(!error.localizedDescription.contains("signing in"), "An arbitrary HTTP error must not recommend signing in")
+}
+var reconnectCache = cache
+reconnectCache.needsReconnect = true
+let reconnectDecoded = try JSONDecoder().decode(TaskCache.self, from: JSONEncoder().encode(reconnectCache))
+expect(reconnectDecoded.needsReconnect == true && reconnectDecoded.tasks == cache.tasks && reconnectDecoded.updated == cache.updated,
+       "Reconnect state must retain cached tasks and their actual sync time")
+expect(legacyCache.needsReconnect == nil, "Old widget caches must remain readable")
+print("PASS: typed OAuth/API errors, expired authorization versus bad client, session-policy subtype, and reconnect cache compatibility")

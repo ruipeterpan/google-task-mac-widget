@@ -49,6 +49,7 @@ struct TaskCache: Codable {
     var updated: Date
     var listID: String? = nil
     var completionFeedback: [CompletionFeedback]? = nil
+    var needsReconnect: Bool? = nil
 
     var incompleteCount: Int {
         let checkedIDs = Set((completionFeedback ?? []).map { $0.task.id })
@@ -81,12 +82,41 @@ func formEncoded(_ values: [String: String]) -> Data {
         $0.key.addingPercentEncoding(withAllowedCharacters: allowed)! + "=" + $0.value.addingPercentEncoding(withAllowedCharacters: allowed)!
     }.joined(separator: "&").data(using: .utf8)!
 }
-func checkHTTP(_ data: Data, _ response: URLResponse) throws {
+enum GoogleRequestContext: String { case api, oauth }
+struct GoogleServiceError: LocalizedError {
+    var status: Int
+    var context: GoogleRequestContext
+    var code: String?
+    var detail: String?
+    var subtype: String?
+    var requiresReauthentication: Bool { context == .oauth && code == "invalid_grant" }
+    var errorDescription: String? {
+        if requiresReauthentication {
+            if subtype == "invalid_rapt" {
+                return "Google requires a new sign-in under your account’s session policy. Reconnect Google Tasks. (invalid_grant; invalid_rapt)"
+            }
+            return "Google’s authorization expired or was revoked. Reconnect Google Tasks. (invalid_grant)"
+        }
+        if context == .oauth, code == "invalid_client" || code == "unauthorized_client" {
+            return "Google rejected the app’s OAuth configuration. Check the imported Desktop OAuth JSON. (\(code!))"
+        }
+        if context == .oauth, let code {
+            return "Google sign-in failed: \(code)\(detail.map { ": " + $0 } ?? "")"
+        }
+        return detail ?? "Google returned HTTP \(status). Please try again."
+    }
+}
+func checkHTTP(_ data: Data, _ response: URLResponse, context: GoogleRequestContext = .api) throws {
     guard let http = response as? HTTPURLResponse else { throw AppError.message("No response from Google.") }
     guard (200..<300).contains(http.statusCode) else {
-        struct Failure: Decodable { struct Detail: Decodable { var message: String }; var error: Detail }
-        let detail = (try? JSONDecoder().decode(Failure.self, from: data).error.message) ?? "Google returned HTTP \(http.statusCode). Try signing in again."
-        throw AppError.message(detail)
+        struct OAuthFailure: Decodable { var error: String; var error_description: String?; var error_subtype: String? }
+        struct APIFailure: Decodable { struct Detail: Decodable { var message: String; var status: String? }; var error: Detail }
+        if context == .oauth, let failure = try? JSONDecoder().decode(OAuthFailure.self, from: data) {
+            throw GoogleServiceError(status: http.statusCode, context: context, code: failure.error,
+                                     detail: failure.error_description, subtype: failure.error_subtype)
+        }
+        let failure = try? JSONDecoder().decode(APIFailure.self, from: data).error
+        throw GoogleServiceError(status: http.statusCode, context: context, code: failure?.status, detail: failure?.message)
     }
 }
 
