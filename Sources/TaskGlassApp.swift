@@ -5,6 +5,47 @@ extension Notification.Name {
     static let taskGlassFocusComposer = Notification.Name("TaskGlass.focusComposer")
 }
 
+// Explicit user opens must restore an accessory app after desktop reveal/hide.
+// Wait for activation before handing keyboard focus to the composer.
+@MainActor final class WindowPresentation {
+    static let shared = WindowPresentation()
+    private weak var requestedWindow: NSWindow?
+    private var focusComposer = false
+    private var activationObserver: NSObjectProtocol?
+
+    private init() {
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.finishActivation() }
+        }
+    }
+    func show(_ window: NSWindow, focusComposer: Bool = false) {
+        requestedWindow = window
+        self.focusComposer = focusComposer
+        window.collectionBehavior.insert(.moveToActiveSpace)
+        NSApp.unhide(nil)
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        // Let the current desktop/widget event finish before the final ordering.
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window, self.requestedWindow === window, window.isVisible else { return }
+            self.finishActivation()
+        }
+    }
+    private func finishActivation() {
+        guard NSApp.isActive, let window = requestedWindow, window.isVisible else { return }
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        if focusComposer {
+            NotificationCenter.default.post(name: .taskGlassFocusComposer, object: nil)
+        }
+        requestedWindow = nil
+    }
+}
+
 // Own one reusable window rather than letting URL events create WindowGroup scenes.
 @MainActor final class TaskWindowController {
     static let shared = TaskWindowController()
@@ -28,13 +69,7 @@ extension Notification.Name {
             newWindow.center()
             window = newWindow
         }
-        NSApp.setActivationPolicy(.accessory)
-        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .taskGlassFocusComposer, object: nil)
-        }
+        if let window { WindowPresentation.shared.show(window, focusComposer: true) }
     }
 }
 
@@ -90,8 +125,7 @@ extension Notification.Name {
             window.center()
             settingsWindow = window
         }
-        settingsWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if let settingsWindow { WindowPresentation.shared.show(settingsWindow) }
     }
     @objc func quit() { NSApp.terminate(nil) }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
