@@ -23,10 +23,12 @@ extension Notification.Name {
     func show(_ window: NSWindow, focusComposer: Bool = false) {
         requestedWindow = window
         self.focusComposer = focusComposer
-        window.collectionBehavior.insert(.moveToActiveSpace)
         NSApp.unhide(nil)
         if window.isMiniaturized { window.deminiaturize(nil) }
         NSApp.activate()
+        // Reinsert an existing window into the active window group instead of
+        // retaining its offscreen desktop-reveal placement.
+        if focusComposer { window.orderOut(nil) }
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
         // Let the current desktop/widget event finish before the final ordering.
@@ -65,6 +67,9 @@ extension Notification.Name {
             newWindow.identifier = NSUserInterfaceItemIdentifier("tasks")
             newWindow.isReleasedWhenClosed = false
             newWindow.tabbingMode = .disallowed
+            // Agent apps still need a primary task window. Auxiliary/move-to-
+            // active-space windows do not displace the desktop’s current stage.
+            newWindow.collectionBehavior = [.managed, .primary]
             newWindow.contentView = NSHostingView(rootView: content)
             newWindow.center()
             window = newWindow
